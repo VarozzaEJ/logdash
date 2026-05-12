@@ -3,9 +3,15 @@ services:
     image: alpine
     command: >
       sh -c "while true; do
-        echo INFO: request handled;
-        echo WARN: slow response detected;
-        echo ERROR: database connection failed;
+        echo INFO: GET /api/users 200 42ms;
+        sleep 1;
+        echo INFO: GET /api/products 200 18ms;
+        sleep 1;
+        echo WARN: GET /api/orders 200 834ms slow response;
+        sleep 1;
+        echo ERROR: POST /api/checkout failed database timeout;
+        sleep 1;
+        echo INFO: GET /health 200 2ms;
         sleep 3;
       done"
 

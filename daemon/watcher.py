@@ -2,6 +2,7 @@ import asyncio
 import os
 import json
 import socket
+import re
 from dotenv import load_dotenv
 from models import LogEntry
 from uploader import Uploader
@@ -11,33 +12,49 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 DOCKER_SOCKET = "/var/run/docker.sock"
-WATCHED_SERVICE = "logdash-dummy-app-1"
+IGNORED_CONTAINERS = {"logdash-daemon-1"}
 
-def parse_level(line: str) -> str:
-    upper = line.upper()
-    if "ERROR" in upper:
-        return "ERROR"
-    if "WARN" in upper:
-        return "WARN"
-    return "INFO"
-
-def get_container_id(name: str) -> str:
+def docker_request(path: str) -> bytes:
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect(DOCKER_SOCKET)
-    sock.send(b"GET /containers/json HTTP/1.0\r\nHost: localhost\r\n\r\n")
+    sock.send(f"GET {path} HTTP/1.0\r\nHost: localhost\r\n\r\n".encode())
     data = b""
     while chunk := sock.recv(4096):
         data += chunk
     sock.close()
-    body = data.split(b"\r\n\r\n", 1)[1]
-    containers = json.loads(body)
-    for c in containers:
-        for n in c.get("Names", []):
-            if name in n.lstrip("/"):
-                return c["Id"]
-    return None
+    return data.split(b"\r\n\r\n", 1)[1]
 
-def tail_container(container_id: str, service_name: str, uploader: Uploader):
+def get_running_containers() -> list[dict]:
+    body = docker_request("/containers/json")
+    containers = json.loads(body)
+    result = []
+    for c in containers:
+        name = c["Names"][0].lstrip("/")
+        if name not in IGNORED_CONTAINERS:
+            result.append({"id": c["Id"], "name": name})
+    return result
+
+LOG_LEVEL_PATTERN = re.compile(
+    r'\b(DEBUG|INFO|WARN|WARNING|ERROR|CRITICAL|FATAL)\b',
+    re.IGNORECASE
+)
+
+def parse_level(line: str) -> str:
+    match = LOG_LEVEL_PATTERN.search(line)
+    if not match:
+        return "INFO"
+    level = match.group(1).upper()
+    if level in ("WARN", "WARNING"):
+        return "WARN"
+    if level in ("CRITICAL", "FATAL"):
+        return "ERROR"
+    if level == "DEBUG":
+        return "INFO"
+    return level
+
+def tail_container(container: dict, uploader: Uploader):
+    container_id = container["id"]
+    service_name = container["name"]
     print(f"Watching container: {service_name}")
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect(DOCKER_SOCKET)
@@ -75,21 +92,29 @@ def tail_container(container_id: str, service_name: str, uploader: Uploader):
             message=line,
         )
         uploader.enqueue(entry)
-        print(f"[{entry.level}] {entry.service}: {entry.message}")
+        print(f"[{entry.level}] {service_name}: {entry.message}")
+
+async def watch_loop(uploader: Uploader, loop: asyncio.AbstractEventLoop):
+    watched = set()
+    while True:
+        containers = get_running_containers()
+        for container in containers:
+            if container["id"] not in watched:
+                watched.add(container["id"])
+                loop.run_in_executor(
+                    None, tail_container, container, uploader
+                )
+        await asyncio.sleep(5)
 
 async def main():
     print("Logdash daemon starting...")
     uploader = Uploader(SUPABASE_URL, SUPABASE_KEY)
-
-    container_id = get_container_id(WATCHED_SERVICE)
-    if not container_id:
-        print(f"Container '{WATCHED_SERVICE}' not found. Is it running?")
-        return
-
     loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, tail_container, container_id, WATCHED_SERVICE, uploader)
 
-    await uploader.run()
+    await asyncio.gather(
+        watch_loop(uploader, loop),
+        uploader.run()
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())
