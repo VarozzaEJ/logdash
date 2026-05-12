@@ -14,7 +14,7 @@ to a React dashboard via Supabase.
 
 [link to your Vercel deploy]
 
-![Logdash screenshot](<img width="1919" height="1075" alt="Image" src="https://github.com/user-attachments/assets/382e6d22-8d10-412e-88d8-675774a21f08" />)
+![Logdash screenshot]<img width="1919" height="1075" alt="Image" src="https://github.com/user-attachments/assets/98f4103e-f4f5-48d8-9222-8c187a0ba07a" />
 
 ## Running locally
 
