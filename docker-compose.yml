@@ -1,0 +1,17 @@
+services:
+  dummy-app:
+    image: alpine
+    command: >
+      sh -c "while true; do
+        echo INFO: request handled;
+        echo WARN: slow response detected;
+        sleep 2;
+      done"
+
+  daemon:
+    build: ./daemon
+    env_file: .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - dummy-app

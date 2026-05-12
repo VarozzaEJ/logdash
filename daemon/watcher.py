@@ -1,0 +1,1 @@
+print("Logdash daemon starting...")
