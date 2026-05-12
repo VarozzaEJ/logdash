@@ -12,7 +12,7 @@ to a React dashboard via Supabase.
 
 ## Demo
 
-[link to your Vercel deploy]
+https://logdash.vercel.app/
 
 <img width="1920" height="1078" alt="Image" src="https://github.com/user-attachments/assets/151403a2-535b-48bd-a7d4-a257be0c99b2" />
 
