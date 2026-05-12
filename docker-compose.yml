@@ -23,3 +23,10 @@ services:
     depends_on:
       - dummy-app
     restart: on-failure
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - daemon
