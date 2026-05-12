@@ -14,7 +14,7 @@ to a React dashboard via Supabase.
 
 [link to your Vercel deploy]
 
-<img width="1919" height="1075" alt="Image" src="https://github.com/user-attachments/assets/98f4103e-f4f5-48d8-9222-8c187a0ba07a" />
+<img width="1920" height="1078" alt="Image" src="https://github.com/user-attachments/assets/151403a2-535b-48bd-a7d4-a257be0c99b2" />
 
 ## Running locally
 
